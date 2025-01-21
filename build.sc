@@ -3,6 +3,9 @@ package build
 import mill._
 import scalalib._
 
+import contrib.docker.DockerModule
+import $ivy.`com.lihaoyi::mill-contrib-docker:`
+
 object parser extends ScalaModule {
   def scalaVersion = "3.3.4"
   def ivyDeps = Agg(
@@ -17,11 +20,13 @@ object parser extends ScalaModule {
   }
 }
 
-object server extends ScalaModule {
+object server extends ScalaModule with DockerModule {
   def scalaVersion: T[String] = "3.3.4"
 
   override def ivyDeps: T[Agg[Dep]] = Agg(
     ivy"net.sigusr::fs2-mqtt:1.0.1",
     ivy"com.monovore::decline-effect:2.5.0",
   )
+
+  object docker extends DockerConfig
 }
