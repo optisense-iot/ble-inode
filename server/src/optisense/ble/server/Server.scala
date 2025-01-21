@@ -77,7 +77,11 @@ object ServerApp
         implicit val console: Console[IO] = Console.make[IO]
         Session[IO](transportConfig, sessionConfig)
           .use { session =>
-            val reader = session.messages.flatMap(processMessages()).compile.drain
+            val processMessages = session.messages
+              .flatTap(logMessage())
+              .evalMap(msg => session.publish(config.output, msg.payload, AtMostOnce))
+              .compile
+              .drain
             for {
               s <- session.subscribe(Vector((config.input, AtMostOnce)))
               _ <- s.traverse { p =>
@@ -86,13 +90,13 @@ object ServerApp
                     s"${scala.Console.CYAN}${p._2.show}${scala.Console.RESET}"
                 )
               }
-              _ <- reader
+              _ <- processMessages
             } yield ExitCode.Success
           }
           .handleErrorWith(_ => IO.pure(ExitCode.Error))
       }
 
-  private def processMessages(): Message => Stream[IO, Unit] = { case Message(topic, payload) =>
+  private def logMessage(): Message => Stream[IO, Unit] = { case Message(topic, payload) =>
     Stream.eval(
       putStrLn[IO](
         s"Topic ${scala.Console.CYAN}$topic${scala.Console.RESET}: " +
