@@ -237,6 +237,6 @@ object InodeParser {
           .typecase(CareSensor1.SensorType, careSensor1Codec(flags))
           .typecase(CareSensor2.SensorType, careSensor2Codec(flags))
           .tuple
-      )(d => d._1.flags)
+      )(_._1.flags)
       .xmap(_._1, Tuple(_))
 }
