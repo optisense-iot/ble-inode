@@ -8,6 +8,7 @@ object parser extends ScalaModule {
   def ivyDeps = Agg(
     ivy"org.scodec::scodec-core:2.3.2",
     ivy"com.lihaoyi::mainargs:0.6.2",
+    ivy"org.typelevel::cats-core:2.13.0",
   )
 
   object test extends ScalaTests {
