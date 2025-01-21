@@ -12,6 +12,7 @@ enum INode {
   case CareSensor2(flags: SensorFlags, data: CareSensorData)
   case CareSensor3(flags: SensorFlags, data: CareSensorData)
   case CareSensorT(flags: SensorFlags, data: CareSensorData)
+  case CareSensorHT(flags: SensorFlags, data: CareSensorData)
 
   def flags: SensorFlags
 }
@@ -292,6 +293,21 @@ object InodeParser {
       )
   }
 
+  object CareSensorHT {
+    val SensorType = 0x9b.toInt
+
+    val codec: Codec[CareSensorData] =
+      (CareSensor1.batteryCodec :: CareSensor1.alarmsCodec ::
+        CareSensor1.accelerationCodec :: CareSensor3.temperatureCodec :: CareSensor3.humidityCodec :: CareSensor1.timeCodec :: CareSensor1.signatureCodec)
+        .as[CareSensorData]
+
+    val fullCodec: Codec[INode.CareSensorT] = (flagsCodec :: sensorTypeCodec :: codec)
+      .xmap(
+        { case (f, _, c) => INode.CareSensorT(f, c) },
+        cs => (cs.flags, SensorType, cs.data),
+      )
+  }
+
   private def careSensor1Codec(flags: SensorFlags): Codec[INode.CareSensor1] =
     (provide(flags) :: CareSensor1.codec)
       .xmap(INode.CareSensor1.apply, data => (data.flags, data.data))
@@ -308,6 +324,10 @@ object InodeParser {
     (provide(flags) :: CareSensorT.codec)
       .xmap(INode.CareSensorT.apply, data => (data.flags, data.data))
 
+  private def careSensorHTCodec(flags: SensorFlags): Codec[INode.CareSensorHT] =
+    (provide(flags) :: CareSensorHT.codec)
+      .xmap(INode.CareSensorHT.apply, data => (data.flags, data.data))
+
   val codec: Codec[INode] =
     flagsCodec
       .consume(flags =>
@@ -317,6 +337,7 @@ object InodeParser {
           .typecase(CareSensor2.SensorType, careSensor2Codec(flags))
           .typecase(CareSensor3.SensorType, careSensor3Codec(flags))
           .typecase(CareSensorT.SensorType, careSensorTCodec(flags))
+          .typecase(CareSensorHT.SensorType, careSensorHTCodec(flags))
           .tuple
       )(_._1.flags)
       .xmap(_._1, Tuple(_))
