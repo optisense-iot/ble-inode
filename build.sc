@@ -16,3 +16,11 @@ object parser extends ScalaModule {
     def testFramework = "weaver.framework.CatsEffect"
   }
 }
+
+object server extends ScalaModule {
+  def scalaVersion: T[String] = "3.3.4"
+
+  override def ivyDeps: T[Agg[Dep]] = Agg(
+    ivy"net.sigusr::fs2-mqtt:1.0.1"
+  )
+}
