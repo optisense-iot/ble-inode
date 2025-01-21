@@ -16,12 +16,11 @@ object MySuite extends SimpleIOSuite {
     val parsed = InodeParser.codec.decode(rawData)
     val expected = INode.CareSensor1(
       SensorFlags(false, false),
-      CareSensorData(
+      InodeParser.CareSensor1.Data(
         BatteryInfo(100, 2.88),
         Alarms(false, false, false, false, false, false, false, false, false, false),
         Acceleration(false, 0.0, 0.0, -7.0),
         -30.0,
-        0,
         310260,
         hex"0xce6e77a00b97d1b5".toBitVector.bytes,
       ),
@@ -41,12 +40,11 @@ object MySuite extends SimpleIOSuite {
     val parsed = InodeParser.codec.decode(rawData)
     val expected = INode.CareSensor2(
       SensorFlags(false, false),
-      CareSensorData(
+      InodeParser.CareSensor2.Data(
         BatteryInfo(100, 2.88),
         Alarms(false, false, false, false, false, false, false, false, false, false),
         Acceleration(false, 0.0, 0.0, -7.0),
         -30.0,
-        0,
         310260,
         hex"0xce6e77a00b97d1b5".toBitVector.bytes,
       ),
@@ -67,7 +65,7 @@ object MySuite extends SimpleIOSuite {
     val expected =
       INode.CareSensor3(
         SensorFlags(false, false),
-        CareSensorData(
+        InodeParser.CareSensor3.Data(
           BatteryInfo(100, 2.88),
           Alarms(false, false, false, false, false, false, false, false, false, false),
           Acceleration(false, 0.0, 0.0, -7.0),
@@ -93,12 +91,10 @@ object MySuite extends SimpleIOSuite {
     val expected =
       INode.CareSensorT(
         SensorFlags(false, false),
-        CareSensorData(
+        InodeParser.CareSensorT.Data(
           BatteryInfo(100, 2.88),
           Alarms(false, false, false, false, false, false, false, false, false, false),
-          Acceleration(false, 0.0, 0.0, 0.0),
           -30.0,
-          0.0,
           310260,
           hex"0xce6e77a00b97d1b5",
         ),
@@ -119,10 +115,9 @@ object MySuite extends SimpleIOSuite {
     val expected =
       INode.CareSensorHT(
         SensorFlags(false, false),
-        CareSensorData(
+        InodeParser.CareSensorHT.Data(
           BatteryInfo(100, 2.88),
           Alarms(false, false, false, false, false, false, false, false, false, false),
-          Acceleration(false, 0.0, 0.0, 0.0),
           23.592441406249996,
           1.0,
           310260,
