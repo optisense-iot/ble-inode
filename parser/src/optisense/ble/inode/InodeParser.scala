@@ -7,18 +7,6 @@ import scodec._
 import scodec.bits._
 import scodec.codecs._
 
-// case class INodeCareSensorData(
-//     flags: SensorFlags,   // Flagi (rtto, lowBattery)
-//     sensorType: Int,      // Typ sensora (0x91 dla Care Sensor #1)
-//     battery: BatteryInfo, // Grupy i napięcie baterii
-//     alarms: Alarms,       // Alarmy (w postaci bitowej)
-//     rawPosition: Acceleration,
-//     rawTemperature: Double, // Surowa temperatura (skalibrowana poniżej)
-//     rawUnused: Int,
-//     time: Long,
-//     signature: ByteVector, // Cyfrowy podpis AES128
-// )
-
 enum INodeCareSensorData {
   case CareSensor1(flags: SensorFlags, data: CareSensorData)
   case CareSensor2(flags: SensorFlags, data: CareSensorData)
@@ -27,13 +15,13 @@ enum INodeCareSensorData {
 }
 
 case class CareSensorData(
-    battery: BatteryInfo, // Grupy i napięcie baterii
-    alarms: Alarms,       // Alarmy (w postaci bitowej)
-    rawPosition: Acceleration,
-    rawTemperature: Double, // Surowa temperatura (skalibrowana poniżej)
-    rawUnused: Int,
+    battery: BatteryInfo,
+    alarms: Alarms,
+    position: Acceleration,
+    temperature: Double,
+    humidity: Int,
     time: Long,
-    signature: ByteVector, // Cyfrowy podpis AES128
+    signature: ByteVector,
 )
 
 case class Acceleration(
@@ -71,6 +59,9 @@ object InodeParser {
   val sensorTypeCodec: Codec[Int] = uint8L
 
   object CareSensor1 {
+
+    val SensorType = 0x91.toInt
+
     val temperatureCodec: Codec[Double] = uint16L.xmap(
       rawT => {
         val temp = if (rawT > 127) rawT - 8192 else rawT
@@ -180,12 +171,14 @@ object InodeParser {
     val fullCodec: Codec[INodeCareSensorData.CareSensor1] = (flagsCodec :: sensorTypeCodec :: codec)
       .xmap(
         { case (f, _, c) => INodeCareSensorData.CareSensor1(f, c) },
-        cs => (cs.flags, 145, cs.data),
+        cs => (cs.flags, SensorType, cs.data),
       )
 
   }
 
   object CareSensor2 {
+    val SensorType = 0x92.toInt
+
     val temperatureCodec: Codec[Double] = (uint8L :: uint8L).xmap(
       (msb, lsb) => {
         var temperature = msb * 0.0625 + 16 * (lsb & 0x0f)
@@ -224,7 +217,7 @@ object InodeParser {
     val fullCodec: Codec[INodeCareSensorData.CareSensor2] = (flagsCodec :: sensorTypeCodec :: codec)
       .xmap(
         { case (f, _, c) => INodeCareSensorData.CareSensor2(f, c) },
-        cs => (cs.flags, 146, cs.data),
+        cs => (cs.flags, SensorType, cs.data),
       )
   }
 
@@ -241,8 +234,8 @@ object InodeParser {
       .consume(flags =>
         discriminated[INodeCareSensorData]
           .by(sensorTypeCodec)
-          .typecase(0x91, careSensor1Codec(flags))
-          .typecase(0x92, careSensor2Codec(flags))
+          .typecase(CareSensor1.SensorType, careSensor1Codec(flags))
+          .typecase(CareSensor2.SensorType, careSensor2Codec(flags))
           .tuple
       )(d => d._1.flags)
       .xmap(_._1, Tuple(_))
