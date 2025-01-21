@@ -21,6 +21,7 @@ object server extends ScalaModule {
   def scalaVersion: T[String] = "3.3.4"
 
   override def ivyDeps: T[Agg[Dep]] = Agg(
-    ivy"net.sigusr::fs2-mqtt:1.0.1"
+    ivy"net.sigusr::fs2-mqtt:1.0.1",
+    ivy"com.monovore::decline-effect:2.5.0",
   )
 }
