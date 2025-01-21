@@ -13,6 +13,7 @@ enum INode {
   case CareSensor3(flags: SensorFlags, data: InodeParser.CareSensor3.Data)
   case CareSensorT(flags: SensorFlags, data: InodeParser.CareSensorT.Data)
   case CareSensorHT(flags: SensorFlags, data: InodeParser.CareSensorHT.Data)
+  case CareSensorPT(flags: SensorFlags, data: InodeParser.CareSensorPT.Data)
 
   def flags: SensorFlags
 }
@@ -356,6 +357,47 @@ object InodeParser {
       )
   }
 
+  object CareSensorPT {
+
+    val SensorType = 0x9c.toInt
+
+    case class Data(
+        battery: BatteryInfo,
+        alarms: Alarms,
+        pressure: Double,
+        temperature: Double,
+        time: Long,
+        signature: ByteVector,
+    )
+
+    val pressureCodec: Codec[Double] = uint16L.xmap(
+      rawValue => rawValue / 16,
+      { pressure =>
+        val rawValue = (pressure * 16).toInt
+        // Ensure the rawValue fits in 16 bits
+        rawValue & 0xffff
+      },
+    )
+
+    val temperatureCodec : Codec[Double] = uint16L.xmap(
+      rawValue => 42.5 + rawValue / 480, temp => 
+        val rawValue = (temp * 480 - 42.5).toInt
+        // Ensure the rawValue fits in 16 bits
+        rawValue & 0xffff
+      )
+
+    val codec: Codec[Data] =
+      (CareSensor1.batteryCodec :: CareSensor1.alarmsCodec ::
+        pressureCodec :: temperatureCodec :: ignore(16) :: CareSensor1.timeCodec :: CareSensor1.signatureCodec)
+        .as[Data]
+
+    val fullCodec: Codec[INode.CareSensorPT] = (flagsCodec :: sensorTypeCodec :: codec)
+      .xmap(
+        { case (f, _, c) => INode.CareSensorPT(f, c) },
+        cs => (cs.flags, SensorType, cs.data),
+      )
+  }
+
   private def careSensor1Codec(flags: SensorFlags): Codec[INode.CareSensor1] =
     (provide(flags) :: CareSensor1.codec)
       .xmap(INode.CareSensor1.apply, data => (data.flags, data.data))
@@ -376,6 +418,10 @@ object InodeParser {
     (provide(flags) :: CareSensorHT.codec)
       .xmap(INode.CareSensorHT.apply, data => (data.flags, data.data))
 
+  private def careSensorPTCodec(flags: SensorFlags): Codec[INode.CareSensorPT] =
+    (provide(flags) :: CareSensorPT.codec)
+      .xmap(INode.CareSensorPT.apply, data => (data.flags, data.data))
+
   val codec: Codec[INode] =
     flagsCodec
       .consume(flags =>
@@ -386,6 +432,7 @@ object InodeParser {
           .typecase(CareSensor3.SensorType, careSensor3Codec(flags))
           .typecase(CareSensorT.SensorType, careSensorTCodec(flags))
           .typecase(CareSensorHT.SensorType, careSensorHTCodec(flags))
+          .typecase(CareSensorPT.SensorType, careSensorPTCodec(flags))
           .tuple
       )(_._1.flags)
       .xmap(_._1, Tuple(_))

@@ -131,4 +131,29 @@ object MySuite extends SimpleIOSuite {
       )
     }
   }
+
+  pureTest("should parse care sensor PT data") {
+    val rawData: BitVector =
+      hex"12 9C 00 B0 00 00 4E 3E 40 D8 00 00 00 00 AC 53 54 65 11 26 68 75 16 3A".toBitVector
+
+    val parsed = InodeParser.codec.decode(rawData)
+    val expected =
+      INode.CareSensorPT(
+        SensorFlags(false, false),
+        InodeParser.CareSensorPT.Data(
+          BatteryInfo(100, 2.88),
+          Alarms(false, false, false, false, false, false, false, false, false, false),
+          996.0,
+          157.5,
+          21420,
+          hex"0x546511266875163a",
+        ),
+      )
+
+    matches(parsed) { case Successful(DecodeResult(data, _)) =>
+      expect(
+        data == expected
+      )
+    }
+  }
 }
