@@ -1,13 +1,32 @@
 package optisense.ble.enode
 
+import cats.syntax.all._
 import math._
+import optisense.ble.enode.InodeParser.CareSensor1.flagsCodec
 import scodec._
 import scodec.bits._
 import scodec.codecs._
 
-case class INodeCareSensorData(
-    flags: SensorFlags,   // Flagi (rtto, lowBattery)
-    sensorType: Int,      // Typ sensora (0x91 dla Care Sensor #1)
+// case class INodeCareSensorData(
+//     flags: SensorFlags,   // Flagi (rtto, lowBattery)
+//     sensorType: Int,      // Typ sensora (0x91 dla Care Sensor #1)
+//     battery: BatteryInfo, // Grupy i napięcie baterii
+//     alarms: Alarms,       // Alarmy (w postaci bitowej)
+//     rawPosition: Acceleration,
+//     rawTemperature: Double, // Surowa temperatura (skalibrowana poniżej)
+//     rawUnused: Int,
+//     time: Long,
+//     signature: ByteVector, // Cyfrowy podpis AES128
+// )
+
+enum INodeCareSensorData {
+  case CareSensor1(flags: SensorFlags, data: CareSensorData)
+  case CareSensor2(flags: SensorFlags, data: CareSensorData)
+
+  def flags: SensorFlags
+}
+
+case class CareSensorData(
     battery: BatteryInfo, // Grupy i napięcie baterii
     alarms: Alarms,       // Alarmy (w postaci bitowej)
     rawPosition: Acceleration,
@@ -48,6 +67,9 @@ case class Alarms(
 
 object InodeParser {
 
+  // 2. Typ sensora (1 bajt)
+  val sensorTypeCodec: Codec[Int] = uint8L
+
   object CareSensor1 {
     val temperatureCodec: Codec[Double] = uint16L.xmap(
       rawT => {
@@ -83,8 +105,6 @@ object InodeParser {
     def inverseAdjustAcceleration(acc: Double): Int =
       if (acc < 0) (acc.abs.toInt & 0xf) | 0x10 else acc.toInt
 
-    val rawValueCodec: Codec[Int] = uint16L
-
     val signatureCodec: Codec[ByteVector] = bytes(8)
 
     val batteryCodec: Codec[BatteryInfo] = uint16L.xmap(
@@ -115,8 +135,6 @@ object InodeParser {
         byte.toByte
       },
     )
-    // 2. Typ sensora (1 bajt)
-    val sensorTypeCodec: Codec[Int] = uint8L
 
     // Time Codec
     val timeCodec: Codec[Long] = (uint16L :: uint16L).xmap(
@@ -155,8 +173,77 @@ object InodeParser {
       },
     )
 
-    val codec: Codec[INodeCareSensorData] =
-      (flagsCodec :: sensorTypeCodec :: batteryCodec :: alarmsCodec ::
-        accelerationCodec :: temperatureCodec :: uint16L :: timeCodec :: signatureCodec).as[INodeCareSensorData]
+    val codec: Codec[CareSensorData] =
+      (batteryCodec :: alarmsCodec ::
+        accelerationCodec :: temperatureCodec :: uint16L :: timeCodec :: signatureCodec).as[CareSensorData]
+
+    val fullCodec: Codec[INodeCareSensorData.CareSensor1] = (flagsCodec :: sensorTypeCodec :: codec)
+      .xmap(
+        { case (f, _, c) => INodeCareSensorData.CareSensor1(f, c) },
+        cs => (cs.flags, 145, cs.data),
+      )
+
   }
+
+  object CareSensor2 {
+    val temperatureCodec: Codec[Double] = (uint8L :: uint8L).xmap(
+      (msb, lsb) => {
+        var temperature = msb * 0.0625 + 16 * (lsb & 0x0f)
+
+        // Check for negative adjustment
+        if ((lsb & 0x10) != 0) {
+          temperature -= 256
+        }
+
+        // Clamp the value within the allowed range
+        if (temperature < -30) {
+          temperature = -30
+        } else if (temperature > 70) {
+          temperature = 70
+        }
+
+        temperature
+      },
+      { temp =>
+        // Clamp the temperature within the range
+        var clampedTemp = math.max(math.min(temp, 70), -30)
+
+        // Calculate lsb and msb based on temperature
+        val msb = ((clampedTemp + 30) / 0.0625).toInt & 0xff
+        val lsb = (clampedTemp - msb * 0.0625) * 16 + 0.5 // Round to nearest integer
+
+        // Encode the MSB and LSB as uint8
+        (msb.toByte, lsb.toByte)
+      },
+    )
+    val codec: Codec[CareSensorData] =
+      (CareSensor1.batteryCodec :: CareSensor1.alarmsCodec ::
+        CareSensor1.accelerationCodec :: CareSensor2.temperatureCodec :: uint16L :: CareSensor1.timeCodec :: CareSensor1.signatureCodec)
+        .as[CareSensorData]
+
+    val fullCodec: Codec[INodeCareSensorData.CareSensor2] = (flagsCodec :: sensorTypeCodec :: codec)
+      .xmap(
+        { case (f, _, c) => INodeCareSensorData.CareSensor2(f, c) },
+        cs => (cs.flags, 146, cs.data),
+      )
+  }
+
+  private def careSensor1Codec(flags: SensorFlags): Codec[INodeCareSensorData.CareSensor1] =
+    (provide(flags) :: CareSensor1.codec)
+      .xmap({ case (flags, data) => INodeCareSensorData.CareSensor1(flags, data) }, data => (data.flags, data.data))
+
+  private def careSensor2Codec(flags: SensorFlags): Codec[INodeCareSensorData.CareSensor2] =
+    (provide(flags) :: CareSensor2.codec)
+      .xmap({ case (flags, data) => INodeCareSensorData.CareSensor2(flags, data) }, data => (data.flags, data.data))
+
+  val codec: Codec[INodeCareSensorData] =
+    flagsCodec
+      .consume(flags =>
+        discriminated[INodeCareSensorData]
+          .by(sensorTypeCodec)
+          .typecase(0x91, careSensor1Codec(flags))
+          .typecase(0x92, careSensor2Codec(flags))
+          .tuple
+      )(d => d._1.flags)
+      .xmap(_._1, Tuple(_))
 }
