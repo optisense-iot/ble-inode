@@ -2,12 +2,12 @@ package optisense.ble.enode
 
 import cats.syntax.all._
 import math._
-import optisense.ble.enode.InodeParser.CareSensor1.flagsCodec
+import optisense.ble.enode.INodeParser.CareSensor1.flagsCodec
 import scodec._
 import scodec.bits._
 import scodec.codecs._
 
-object InodeParser {
+object INodeParser {
 
   // 2. Typ sensora (1 bajt)
   val sensorTypeCodec: Codec[Int] = uint8L

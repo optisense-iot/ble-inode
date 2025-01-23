@@ -7,7 +7,7 @@ import scodec.Attempt.Failure
 import scodec.Attempt.Successful
 import weaver.SimpleIOSuite
 
-object MySuite extends SimpleIOSuite {
+object INodeParserSpec extends SimpleIOSuite {
 
   pureTest("should parse care sensor 1 data") {
     val rawData: BitVector =

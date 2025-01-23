@@ -2,7 +2,6 @@ package optisense.ble.enode
 
 import cats.syntax.all._
 import math._
-import optisense.ble.enode.InodeParser.CareSensor1.flagsCodec
 import scodec._
 import scodec.bits._
 import scodec.codecs._
@@ -17,9 +16,18 @@ enum INode {
   case CareSensorPHT(flags: SensorFlags, data: INode.CareSensorPHT.Data)
 
   def flags: SensorFlags
+  def data: INode.CommonData
 }
 
 object INode {
+
+  trait CommonData {
+    def temperature: Double
+    def battery: BatteryInfo
+    def alarms: Alarms
+    def time: Long
+    def signature: ByteVector
+  }
   object CareSensor1 {
 
     val SensorType = 0x91.toInt
@@ -31,7 +39,7 @@ object INode {
         temperature: Double,
         time: Long,
         signature: ByteVector,
-    )
+    ) extends CommonData
   }
 
   object CareSensor2 {
@@ -44,7 +52,7 @@ object INode {
         temperature: Double,
         time: Long,
         signature: ByteVector,
-    )
+    ) extends CommonData
   }
 
   object CareSensor3 {
@@ -58,7 +66,7 @@ object INode {
         humidity: Double,
         time: Long,
         signature: ByteVector,
-    )
+    ) extends CommonData
   }
 
   object CareSensorT {
@@ -70,7 +78,7 @@ object INode {
         temperature: Double,
         time: Long,
         signature: ByteVector,
-    )
+    ) extends CommonData
   }
 
   object CareSensorHT {
@@ -83,7 +91,7 @@ object INode {
         humidity: Double,
         time: Long,
         signature: ByteVector,
-    )
+    ) extends CommonData
   }
 
   object CareSensorPT {
@@ -97,7 +105,7 @@ object INode {
         temperature: Double,
         time: Long,
         signature: ByteVector,
-    )
+    ) extends CommonData
   }
 
   object CareSensorPHT {
@@ -112,20 +120,10 @@ object INode {
         humidity: Double,
         time: Long,
         signature: ByteVector,
-    )
+    ) extends CommonData
   }
 
 }
-
-case class CareSensorData(
-    battery: BatteryInfo,
-    alarms: Alarms,
-    position: Acceleration,
-    temperature: Double,
-    humidity: Double,
-    time: Long,
-    signature: ByteVector,
-)
 
 case class Acceleration(
     motion: Boolean, // Ruch (detekcja ruchu)

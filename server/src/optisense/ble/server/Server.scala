@@ -7,6 +7,7 @@ import cats.effect.IOApp
 import cats.implicits._
 import com.comcast.ip4s.Host
 import com.comcast.ip4s.Port
+import com.github.plokhotnyuk.jsoniter_scala.core._
 import com.monovore.decline.effect.CommandIOApp
 import com.monovore.decline.Opts
 import fs2.concurrent.SignallingRef
@@ -16,7 +17,10 @@ import net.sigusr.mqtt.api.QualityOfService.AtLeastOnce
 import net.sigusr.mqtt.api.QualityOfService.AtMostOnce
 import net.sigusr.mqtt.api.QualityOfService.ExactlyOnce
 import net.sigusr.mqtt.api.RetryConfig.Custom
+import optisense.ble.enode.INodeParser
+import optisense.ble.server.Json.given
 import retry.RetryPolicies
+import scodec.bits.BitVector
 
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.FiniteDuration
@@ -79,7 +83,9 @@ object ServerApp
           .use { session =>
             val processMessages = session.messages
               .flatTap(logMessage())
-              .evalMap(msg => session.publish(config.output, msg.payload, AtMostOnce))
+              .evalMap(msg => IO.fromTry(INodeParser.codec.decodeValue(BitVector(msg.payload.toArray)).toTry))
+              .map(FlatSensorData.from)
+              .evalMap(msg => session.publish(config.output, Vector.from(writeToArray(msg)), AtMostOnce))
               .compile
               .drain
             for {
@@ -93,14 +99,17 @@ object ServerApp
               _ <- processMessages
             } yield ExitCode.Success
           }
-          .handleErrorWith(_ => IO.pure(ExitCode.Error))
+          .handleErrorWith { err =>
+            err.printStackTrace()
+            IO.pure(ExitCode.Error)
+          }
       }
 
   private def logMessage(): Message => Stream[IO, Unit] = { case Message(topic, payload) =>
     Stream.eval(
       putStrLn[IO](
-        s"Topic ${scala.Console.CYAN}$topic${scala.Console.RESET}: " +
-          s"${scala.Console.BOLD}${new String(payload.toArray, "UTF-8")}${scala.Console.RESET}"
+        s"Topic ${scala.Console.CYAN}$topic${scala.Console.RESET}:\n" +
+          BitVector(payload.toArray).toHexDumpColorized
       )
     )
   }
