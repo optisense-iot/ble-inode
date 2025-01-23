@@ -53,5 +53,5 @@ jobs:
 
       - name: Push docker imageo
         run: |
-          docker push my-image:${{ env.COMMIT_HASH }}
-          docker push my-image:latest
+          docker push ghrc.io/optisense-iot/ble-inode:${{ steps.version.outputs.sha_short }}
+          docker push ghrc.io/optisense-iot/ble-inode:latest
