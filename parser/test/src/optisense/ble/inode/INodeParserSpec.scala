@@ -13,7 +13,7 @@ object INodeParserSpec extends SimpleIOSuite {
     val rawData: BitVector =
       hex"92 91 01 b0 00 00 17 00 a8 19 00 00 04 00 f4 bb ce 6e 77 a0 0b 97 d1 b5".toBitVector
 
-    val parsed = InodeParser.codec.decode(rawData)
+    val parsed = INodeParser.codec.decode(rawData)
     val expected = INode.CareSensor1(
       SensorFlags(false, false),
       INode.CareSensor1.Data(
@@ -37,7 +37,7 @@ object INodeParserSpec extends SimpleIOSuite {
     val rawData: BitVector =
       hex"92 92 01 b0 00 00 17 00 a8 19 00 00 04 00 f4 bb ce 6e 77 a0 0b 97 d1 b5".toBitVector
 
-    val parsed = InodeParser.codec.decode(rawData)
+    val parsed = INodeParser.codec.decode(rawData)
     val expected = INode.CareSensor2(
       SensorFlags(false, false),
       INode.CareSensor2.Data(
@@ -61,7 +61,7 @@ object INodeParserSpec extends SimpleIOSuite {
     val rawData: BitVector =
       hex"92 93 01 b0 00 00 17 00 a8 19 e8 18 04 00 f4 bb ce 6e 77 a0 0b 97 d1 b5".toBitVector
 
-    val parsed = InodeParser.codec.decode(rawData)
+    val parsed = INodeParser.codec.decode(rawData)
     val expected =
       INode.CareSensor3(
         SensorFlags(false, false),
@@ -87,7 +87,7 @@ object INodeParserSpec extends SimpleIOSuite {
     val rawData: BitVector =
       hex"92 9A 01 b0 00 00 00 00 a8 19 00 00 04 00 f4 bb ce 6e 77 a0 0b 97 d1 b5".toBitVector
 
-    val parsed = InodeParser.codec.decode(rawData)
+    val parsed = INodeParser.codec.decode(rawData)
     val expected =
       INode.CareSensorT(
         SensorFlags(false, false),
@@ -111,7 +111,7 @@ object INodeParserSpec extends SimpleIOSuite {
     val rawData: BitVector =
       hex"92 9B 01 b0 00 00 00 00 a8 19 00 00 04 00 f4 bb ce 6e 77 a0 0b 97 d1 b5".toBitVector
 
-    val parsed = InodeParser.codec.decode(rawData)
+    val parsed = INodeParser.codec.decode(rawData)
     val expected =
       INode.CareSensorHT(
         SensorFlags(false, false),
@@ -136,7 +136,7 @@ object INodeParserSpec extends SimpleIOSuite {
     val rawData: BitVector =
       hex"12 9C 00 B0 00 00 4E 3E 40 D8 00 00 00 00 AC 53 54 65 11 26 68 75 16 3A".toBitVector
 
-    val parsed = InodeParser.codec.decode(rawData)
+    val parsed = INodeParser.codec.decode(rawData)
     val expected =
       INode.CareSensorPT(
         SensorFlags(false, false),
