@@ -63,11 +63,6 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
 
-      - name: print stuff
-        run: |
-          echo ${{ steps.meta.outputs.labels}}
-          echo ${{ steps.meta.outputs.tags}}
-
       - name: Push docker imageo
         run: |
           docker push ghrc.io/optisense-iot/ble-inode:${{ steps.version.outputs.sha_short }}
