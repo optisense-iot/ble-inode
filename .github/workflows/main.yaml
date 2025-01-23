@@ -65,8 +65,8 @@ jobs:
 
       - name: print stuff
         run: |
-          ecoh ${{ steps.meta.outputs.labels}}
-          ecoh ${{ steps.meta.outputs.tags}}
+          echo ${{ steps.meta.outputs.labels}}
+          echo ${{ steps.meta.outputs.tags}}
 
       - name: Push docker imageo
         run: |
