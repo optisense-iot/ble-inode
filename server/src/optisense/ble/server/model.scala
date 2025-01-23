@@ -29,7 +29,7 @@ case class FlatSensorData(
     time: Long,
     rtto: Boolean,
     lowBattery: Boolean,
-    signature: ByteVector
+    signature: ByteVector,
 ) {
   def withPosition(position: Acceleration): FlatSensorData =
     copy(
@@ -67,7 +67,7 @@ object FlatSensorData {
         time = inode.data.time,
         rtto = inode.flags.rtto,
         lowBattery = inode.flags.lowBattery,
-        signature = inode.data.signature
+        signature = inode.data.signature,
       )
 
   def from(inode: INode): FlatSensorData =
