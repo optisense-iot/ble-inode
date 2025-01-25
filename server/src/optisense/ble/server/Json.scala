@@ -2,7 +2,7 @@ package optisense.ble.server
 
 import com.github.plokhotnyuk.jsoniter_scala.core._
 import com.github.plokhotnyuk.jsoniter_scala.macros._
-import optisense.ble.enode.INode
+import optisense.ble.inode.INode
 import scodec.bits.ByteVector
 
 import java.util.HexFormat

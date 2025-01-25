@@ -17,11 +17,12 @@ import net.sigusr.mqtt.api.QualityOfService.AtLeastOnce
 import net.sigusr.mqtt.api.QualityOfService.AtMostOnce
 import net.sigusr.mqtt.api.QualityOfService.ExactlyOnce
 import net.sigusr.mqtt.api.RetryConfig.Custom
-import optisense.ble.enode.INodeParser
+import optisense.ble.inode.INodeParser
 import optisense.ble.server.Json.given
 import retry.RetryPolicies
 import scodec.bits.BitVector
 
+import java.nio.charset.StandardCharsets
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.duration.SECONDS
@@ -40,6 +41,7 @@ object ServerApp
   private val host     = Opts.option[String]("host", "host").withDefault("localhost")
   private val port     = Opts.option[String]("port", "port").withDefault("1883")
   private val trace    = Opts.flag("trace", help = "Show trace logs").orFalse
+  private val debug    = Opts.flag("debug", help = "Show debug logs").orFalse
 
   case class Config(
       input: String,
@@ -49,10 +51,11 @@ object ServerApp
       host: String,
       port: String,
       trace: Boolean,
+      debug: Boolean,
   )
 
   override def main: Opts[IO[ExitCode]] =
-    (input, output, user, password, host, port, trace)
+    (input, output, user, password, host, port, trace, debug)
       .mapN(Config.apply)
       .map { config =>
         val retryConfig: Custom[IO] = Custom[IO](
@@ -82,12 +85,12 @@ object ServerApp
         Session[IO](transportConfig, sessionConfig)
           .use { session =>
             val processMessages = session.messages
-              .flatTap(logMessage())
-              .evalMap(msg => IO.fromTry(INodeParser.codec.decodeValue(BitVector(msg.payload.toArray)).toTry))
-              .map(FlatSensorData.from)
+              .flatTap(logDebugMessage(config))
+              .through(MessageProccessing.processMessages)
               .evalMap(msg => session.publish(config.output, Vector.from(writeToArray(msg)), AtMostOnce))
               .compile
               .drain
+
             for {
               s <- session.subscribe(Vector((config.input, AtMostOnce)))
               _ <- s.traverse { p =>
@@ -105,12 +108,16 @@ object ServerApp
           }
       }
 
-  private def logMessage(): Message => Stream[IO, Unit] = { case Message(topic, payload) =>
-    Stream.eval(
-      putStrLn[IO](
-        s"Topic ${scala.Console.CYAN}$topic${scala.Console.RESET}:\n" +
-          BitVector(payload.toArray).toHexDumpColorized
+  private def logDebugMessage(config: Config): Message => Stream[IO, Unit] = { case Message(topic, payload) =>
+    if (config.debug) {
+      Stream.eval(
+        putStrLn[IO](
+          s"Topic ${scala.Console.CYAN}$topic${scala.Console.RESET}:\n" +
+            BitVector(payload.toArray).toHexDumpColorized
+        )
       )
-    )
+    } else {
+      Stream.unit
+    }
   }
 }

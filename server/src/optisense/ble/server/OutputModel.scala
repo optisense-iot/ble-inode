@@ -1,8 +1,8 @@
 package optisense.ble.server
 
 import cats.syntax.all._
-import optisense.ble.enode.Acceleration
-import optisense.ble.enode.INode
+import optisense.ble.inode.Acceleration
+import optisense.ble.inode.INode
 import scodec.bits.ByteVector
 
 case class FlatSensorData(

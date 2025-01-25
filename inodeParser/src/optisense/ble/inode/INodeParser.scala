@@ -1,8 +1,8 @@
-package optisense.ble.enode
+package optisense.ble.inode
 
 import cats.syntax.all._
 import math._
-import optisense.ble.enode.INodeParser.CareSensor1.flagsCodec
+import optisense.ble.inode.INodeParser.CareSensor1.flagsCodec
 import scodec._
 import scodec.bits._
 import scodec.codecs._

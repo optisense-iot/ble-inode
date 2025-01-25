@@ -1,4 +1,4 @@
-package optisense.ble.enode
+package optisense.ble.inode
 
 import cats.syntax.all._
 import math._

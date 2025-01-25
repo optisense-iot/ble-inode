@@ -1,0 +1,32 @@
+{
+  "data": [
+    {
+      "timestamp": "2020-02-05T13:10:35Z",
+      "type": "iNode-LAN:43ECB9",
+      "mac": "D0F01843ECB9",
+      "ip": "10.10.6.47",
+      "rtc": 1580908235,
+      "ethRx": 85,
+      "ethTx": 1,
+      "bleRx": 114,
+      "bleTx": 0,
+      "workTime": 17,
+      "txp": 8,
+      "rst": 7,
+      "temp": 56,
+      "msg": 2,
+      "ack": 1,
+      "tx_time": 168508,
+      "juf": 128,
+      "period": 15,
+      "manuf": 244,
+      "rstr": 20
+    },
+    {
+      "timestamp": "2020-02-05T13:10:34Z",
+      "mac": "D0F01843F3D8",
+      "rssi": -64,
+      "rawData": "02010619FF1293011000001700AB18951F485435BE5B809D6F571E40E8"
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-package optisense.ble.enode
+package optisense.ble.inode
 
 import scodec._
 import scodec.bits._
