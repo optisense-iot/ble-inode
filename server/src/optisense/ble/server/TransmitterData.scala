@@ -15,6 +15,6 @@ enum TransmitterData {
 object TransmitterData {
 
   given Decoder[TransmitterData.RawDataItem] = io.circe.generic.semiauto.deriveDecoder
-  given Decoder[TransmitterData] = io.circe.generic.semiauto.deriveDecoder
+  given Decoder[TransmitterData]             = io.circe.generic.semiauto.deriveDecoder
 
 }
