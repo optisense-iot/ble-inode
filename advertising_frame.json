@@ -3,7 +3,7 @@
     {
       "timestamp": "2020-02-05T13:10:35Z",
       "type": "iNode-LAN:43ECB9",
-      "mac": "D0F01843ECB9",
+      "mac": "D0F01843ECB",
       "ip": "10.10.6.47",
       "rtc": 1580908235,
       "ethRx": 85,
