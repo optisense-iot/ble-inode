@@ -21,9 +21,14 @@ import optisense.ble.inode.INodeParser
 import optisense.ble.server.Json.given
 import retry.RetryPolicies
 import scodec.bits.BitVector
+import sttp.client4.*
+import sttp.client4.httpclient.cats.HttpClientCatsBackend
+import sttp.client4.jsoniter.*
+import sttp.model.Uri
 
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.TimeUnit
+import scala.concurrent.duration.given
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.duration.SECONDS
 
@@ -34,78 +39,85 @@ object ServerApp
       version = "0.1.0",
     ) {
 
-  private val input    = Opts.option[String]("from", "Input topic with raw ble data")
-  private val output   = Opts.option[String]("to", "Output that processed data will be send")
-  private val user     = Opts.option[String]("user", "username").orNone
-  private val password = Opts.option[String]("password", "password").orNone
-  private val host     = Opts.option[String]("host", "host").withDefault("localhost")
-  private val port     = Opts.option[String]("port", "port").withDefault("1883")
-  private val trace    = Opts.flag("trace", help = "Show trace logs").orFalse
-  private val debug    = Opts.flag("debug", help = "Show debug logs").orFalse
+  private val inputTopic = Opts.option[String]("from", "Input topic with raw ble data")
+  private val targetHost =
+    Opts
+      .option[String]("targetHost", "Address of the thingsBoard instance that the data will be send to")
+      .mapValidated(s => Uri.parse(s).toValidatedNel)
+  private val host  = Opts.option[String]("host", "host").withDefault("localhost")
+  private val port  = Opts.option[String]("port", "port").withDefault("1883")
+  private val trace = Opts.flag("trace", help = "Show trace logs").orFalse
+  private val debug = Opts.flag("debug", help = "Show debug logs").orFalse
 
   case class Config(
-      input: String,
-      output: String,
-      user: Option[String],
-      password: Option[String],
+      inputTopic: String,
+      targetHost: Uri,
       host: String,
       port: String,
       trace: Boolean,
       debug: Boolean,
   )
+  private val readerSessionConfig =
+    SessionConfig(
+      "optisense-subscriber",
+      cleanSession = false,
+      user = None,
+      password = None,
+    )
+  private def writerSessionConfig(user: String) = SessionConfig(
+    "optisense-publisher",
+    cleanSession = false,
+    user = user.some,
+    password = None,
+  )
 
   override def main: Opts[IO[ExitCode]] =
-    (input, output, user, password, host, port, trace, debug)
+    (inputTopic, targetHost, host, port, trace, debug)
       .mapN(Config.apply)
       .map { config =>
-        val retryConfig: Custom[IO] = Custom[IO](
-          RetryPolicies
-            .limitRetries[IO](5)
-            .join(RetryPolicies.fullJitter[IO](FiniteDuration(2, SECONDS)))
-        )
         val transportConfig =
           TransportConfig[IO](
             Host.fromString(config.host).getOrElse(sys.error(s"Incorrect host value: ${config.host}")),
             Port.fromString(config.port).getOrElse(sys.error(s"Incorrect port value: ${config.port}")),
-            // TLS support looks like
-            // 8883,
-            // tlsConfig = Some(TLSConfig(TLSContextKind.System)),
-            retryConfig = retryConfig,
             traceMessages = config.trace,
           )
-        val sessionConfig =
-          SessionConfig(
-            "optisense-subscriber",
-            cleanSession = false,
-            user = config.user,
-            password = config.password,
-            keepAlive = 5,
-          )
-        implicit val console: Console[IO] = Console.make[IO]
-        Session[IO](transportConfig, sessionConfig)
-          .use { session =>
-            val processMessages = session.messages
-              .flatTap(logDebugMessage(config))
-              .through(MessageProccessing.processMessages)
-              .evalMap(msg => session.publish(config.output, Vector.from(writeToArray(msg)), AtMostOnce))
-              .compile
-              .drain
 
-            for {
-              s <- session.subscribe(Vector((config.input, AtMostOnce)))
-              _ <- s.traverse { p =>
-                putStrLn[IO](
-                  s"Topic ${scala.Console.CYAN}${p._1}${scala.Console.RESET} subscribed with QoS " +
-                    s"${scala.Console.CYAN}${p._2.show}${scala.Console.RESET}"
-                )
-              }
-              _ <- processMessages
-            } yield ExitCode.Success
-          }
-          .handleErrorWith { err =>
-            err.printStackTrace()
-            IO.pure(ExitCode.Error)
-          }
+        implicit val console: Console[IO] = Console.make[IO]
+
+        HttpClientCatsBackend.resource[IO]().use { httpBackend =>
+          Session[IO](transportConfig, readerSessionConfig)
+            .use { readerSession =>
+              val processMessages = readerSession.messages
+                .flatTap(logDebugMessage(config))
+                .through(MessageProccessing.processMessages)
+                .evalMap { msg =>
+                  val request = basicRequest
+                    .post(uri"${config.targetHost}/api/v1/${msg.macAddress}/telemetry")
+                    .body(asJson(msg))
+
+                  request
+                    .send(httpBackend)
+                    .flatMap(resp => IO.println(request.toCurl) *> IO.println(resp))
+                }
+                .compile
+                .drain
+
+              for {
+                subscribedTopics <- readerSession.subscribe(Vector((config.inputTopic, AtMostOnce)))
+                _ <- subscribedTopics.traverse { case (topic, qos) =>
+                  putStrLn[IO](
+                    s"Topic ${scala.Console.CYAN}${topic}${scala.Console.RESET} subscribed with QoS " +
+                      s"${scala.Console.CYAN}${qos.show}${scala.Console.RESET}"
+                  )
+                }
+                _ <- processMessages
+              } yield ExitCode.Success
+            }
+            .handleErrorWith { err =>
+              err.printStackTrace()
+              IO.pure(ExitCode.Error)
+            }
+        }
       }
 
   private def logDebugMessage(config: Config): Message => Stream[IO, Unit] = { case Message(topic, payload) =>

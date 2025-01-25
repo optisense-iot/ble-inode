@@ -29,6 +29,8 @@ object server extends ScalaModule with DockerModule {
 
   override def ivyDeps: T[Agg[Dep]] = Agg(
     ivy"net.sigusr::fs2-mqtt:1.0.1",
+    ivy"com.softwaremill.sttp.client4::cats:4.0.0-M25",
+    ivy"com.softwaremill.sttp.client4::jsoniter:4.0.0-M25",
     ivy"com.monovore::decline-effect:2.5.0",
     ivy"com.github.plokhotnyuk.jsoniter-scala::jsoniter-scala-core::${Versions.jsoniter}",
     ivy"io.circe::circe-parser:0.14.10",
