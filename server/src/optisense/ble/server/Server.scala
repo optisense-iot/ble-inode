@@ -95,9 +95,11 @@ object ServerApp
                     .post(uri"${config.targetHost}/api/v1/${msg.macAddress}/telemetry")
                     .body(asJson(msg))
 
-                  request
-                    .send(httpBackend)
-                    .flatMap(resp => IO.println(request.toCurl) *> IO.println(resp))
+                  IO.println(s"Sending data to ${config.targetHost} for ${msg.macAddress}") *>
+                    request
+                      .send(httpBackend)
+                      .attempt
+                      .flatMap(resp => IO.println(resp))
                 }
                 .compile
                 .drain
