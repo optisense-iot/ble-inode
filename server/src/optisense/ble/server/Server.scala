@@ -42,12 +42,13 @@ object ServerApp
   private val inputTopic = Opts.option[String]("from", "Input topic with raw ble data")
   private val targetHost =
     Opts
-      .option[String]("targetHost", "Address of the thingsBoard instance that the data will be send to")
+      .option[String]("targetHost", "Address of the influxDB instance that the data will be send to")
       .mapValidated(s => Uri.parse(s).toValidatedNel)
-  private val host  = Opts.option[String]("host", "host").withDefault("localhost")
-  private val port  = Opts.option[String]("port", "port").withDefault("1883")
-  private val trace = Opts.flag("trace", help = "Show trace logs").orFalse
-  private val debug = Opts.flag("debug", help = "Show debug logs").orFalse
+  private val influxDbToken = Opts.option[String]("token", "InfluxDB api token")
+  private val host          = Opts.option[String]("host", "Host of the mqtt broker").withDefault("localhost")
+  private val port          = Opts.option[String]("port", "Port of the mqtt broker").withDefault("1883")
+  private val trace         = Opts.flag("trace", help = "Show trace logs").orFalse
+  private val debug         = Opts.flag("debug", help = "Show debug logs").orFalse
 
   case class Config(
       inputTopic: String,
@@ -56,6 +57,7 @@ object ServerApp
       port: String,
       trace: Boolean,
       debug: Boolean,
+      token: String,
   )
   private val readerSessionConfig =
     SessionConfig(
@@ -72,7 +74,7 @@ object ServerApp
   )
 
   override def main: Opts[IO[ExitCode]] =
-    (inputTopic, targetHost, host, port, trace, debug)
+    (inputTopic, targetHost, host, port, trace, debug, influxDbToken)
       .mapN(Config.apply)
       .map { config =>
         val transportConfig =
@@ -84,20 +86,16 @@ object ServerApp
 
         implicit val console: Console[IO] = Console.make[IO]
 
-        HttpClientCatsBackend.resource[IO]().use { httpBackend =>
+        InfluxDBClient.make(config.token).use { influxDbClient =>
           Session[IO](transportConfig, readerSessionConfig)
             .use { readerSession =>
               val processMessages = readerSession.messages
                 .flatTap(logDebugMessage(config))
                 .through(MessageProccessing.processMessages)
                 .evalMap { msg =>
-                  val request = basicRequest
-                    .post(uri"${config.targetHost}/api/v1/${msg.macAddress}/telemetry")
-                    .body(asJson(msg))
-
                   IO.println(s"Sending data to ${config.targetHost} for ${msg.macAddress}") *>
-                    request
-                      .send(httpBackend)
+                    influxDbClient
+                      .sendData(msg)
                       .attempt
                       .flatMap(resp => IO.println(resp))
                 }
