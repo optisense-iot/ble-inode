@@ -1,0 +1,48 @@
+services:
+  influxdb:
+    image: influxdb:latest
+    container_name: influxdb
+    ports:
+      - "8086:8086"
+    volumes:
+      - ./influxdb:/var/lib/influxdb2
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: admin
+      DOCKER_INFLUXDB_INIT_PASSWORD: supersecurepassword
+      DOCKER_INFLUXDB_INIT_ORG: my-org
+      DOCKER_INFLUXDB_INIT_BUCKET: sensors
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: my-secret-token
+
+  parser:
+    image: ghcr.io/optisense-iot/ble-inode:latest
+    container_name: parser
+    depends_on:
+      - mqtt
+      - influxdb
+    command:
+      [
+        "--from",
+        "raw",
+        "--targetHost",
+        "influxdb:8086",
+        "--token",
+        "my-secret-token",
+        "--host",
+        "mqtt",
+        "--port",
+        "1883",
+        "--mac",
+        "D0F01843EYY",
+        "--mac",
+        "D0F01843EXX",
+      ]
+
+  mqtt:
+    image: eclipse-mosquitto:latest
+    container_name: mosquitto
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./mqtt5/config:/mosquitto/config:rw
