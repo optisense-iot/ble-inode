@@ -89,45 +89,47 @@ object ServerApp
 
         implicit val console: Console[IO] = Console.make[IO]
 
-        InfluxDBClient.make(config.token).use { influxDbClient =>
-          Session[IO](transportConfig, readerSessionConfig)
-            .use { readerSession =>
-              val processMessages = readerSession.messages
-                .flatTap(logDebugMessage(config))
-                .through(MessageProccessing.processMessages)
-                .flatMap { msg =>
-                  if (config.macWhitelist.contains_(msg.macAddress)) {
-                    Stream.eval(IO.pure(msg))
-                  } else {
-                    Stream.eval(IO.println(s"Dropping message from: ${msg.macAddress}")) *> Stream.empty
+        InfluxDBClient
+          .make(config.token, config.targetHost)
+          .use { influxDbClient =>
+            Session[IO](transportConfig, readerSessionConfig)
+              .use { readerSession =>
+                val processMessages = readerSession.messages
+                  .flatTap(logDebugMessage(config))
+                  .through(MessageProccessing.processMessages)
+                  .flatMap { msg =>
+                    if (config.macWhitelist.contains_(msg.macAddress)) {
+                      Stream.eval(IO.pure(msg))
+                    } else {
+                      Stream.eval(IO.println(s"Dropping message from: ${msg.macAddress}")) *> Stream.empty
+                    }
                   }
-                }
-                .evalMap { msg =>
-                  IO.println(s"Sending data to ${config.targetHost} for ${msg.macAddress}") *>
-                    influxDbClient
-                      .sendData(msg)
-                      .attempt
-                      .flatMap(resp => IO.println(resp))
-                }
-                .compile
-                .drain
+                  .evalMap { msg =>
+                    IO.println(s"Sending data to ${config.targetHost} for ${msg.macAddress}") *>
+                      influxDbClient
+                        .sendData(msg)
+                        .attempt
+                        .flatMap(resp => IO.println(resp))
+                  }
+                  .compile
+                  .drain
 
-              for {
-                subscribedTopics <- readerSession.subscribe(Vector((config.inputTopic, AtMostOnce)))
-                _ <- subscribedTopics.traverse { case (topic, qos) =>
-                  putStrLn[IO](
-                    s"Topic ${scala.Console.CYAN}${topic}${scala.Console.RESET} subscribed with QoS " +
-                      s"${scala.Console.CYAN}${qos.show}${scala.Console.RESET}"
-                  )
-                }
-                _ <- processMessages
-              } yield ExitCode.Success
-            }
-            .handleErrorWith { err =>
-              err.printStackTrace()
-              IO.pure(ExitCode.Error)
-            }
-        }
+                for {
+                  subscribedTopics <- readerSession.subscribe(Vector((config.inputTopic, AtMostOnce)))
+                  _ <- subscribedTopics.traverse { case (topic, qos) =>
+                    putStrLn[IO](
+                      s"Topic ${scala.Console.CYAN}${topic}${scala.Console.RESET} subscribed with QoS " +
+                        s"${scala.Console.CYAN}${qos.show}${scala.Console.RESET}"
+                    )
+                  }
+                  _ <- processMessages
+                } yield ExitCode.Success
+              }
+              .handleErrorWith { err =>
+                err.printStackTrace()
+                IO.pure(ExitCode.Error)
+              }
+          }
       }
 
   private def logDebugMessage(config: Config): Message => Stream[IO, Unit] = { case Message(topic, payload) =>
