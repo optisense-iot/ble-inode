@@ -1,5 +1,6 @@
 package optisense.ble.server
 
+import cats.data.NonEmptyList
 import cats.effect.std.Console
 import cats.effect.ExitCode
 import cats.effect.IO
@@ -49,6 +50,7 @@ object ServerApp
   private val port          = Opts.option[String]("port", "Port of the mqtt broker").withDefault("1883")
   private val trace         = Opts.flag("trace", help = "Show trace logs").orFalse
   private val debug         = Opts.flag("debug", help = "Show debug logs").orFalse
+  private val macWhitelist  = Opts.options[String]("mac", "Allowed mac address")
 
   case class Config(
       inputTopic: String,
@@ -58,6 +60,7 @@ object ServerApp
       trace: Boolean,
       debug: Boolean,
       token: String,
+      macWhitelist: NonEmptyList[String],
   )
   private val readerSessionConfig =
     SessionConfig(
@@ -74,7 +77,7 @@ object ServerApp
   )
 
   override def main: Opts[IO[ExitCode]] =
-    (inputTopic, targetHost, host, port, trace, debug, influxDbToken)
+    (inputTopic, targetHost, host, port, trace, debug, influxDbToken, macWhitelist)
       .mapN(Config.apply)
       .map { config =>
         val transportConfig =
@@ -92,6 +95,13 @@ object ServerApp
               val processMessages = readerSession.messages
                 .flatTap(logDebugMessage(config))
                 .through(MessageProccessing.processMessages)
+                .flatMap { msg =>
+                  if (config.macWhitelist.contains_(msg.macAddress)) {
+                    Stream.eval(IO.pure(msg))
+                  } else {
+                    Stream.eval(IO.println(s"Dropping message from: ${msg.macAddress}")) *> Stream.empty
+                  }
+                }
                 .evalMap { msg =>
                   IO.println(s"Sending data to ${config.targetHost} for ${msg.macAddress}") *>
                     influxDbClient
