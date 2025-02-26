@@ -29,6 +29,7 @@ import sttp.model.Uri
 
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.TimeUnit
+import java.util.UUID
 import scala.concurrent.duration.given
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.duration.SECONDS
@@ -64,7 +65,7 @@ object ServerApp
   )
   private val readerSessionConfig =
     SessionConfig(
-      "optisense-subscriber",
+      s"optisense-subscriber-${UUID.randomUUID().toString()}",
       cleanSession = false,
       user = None,
       password = None,

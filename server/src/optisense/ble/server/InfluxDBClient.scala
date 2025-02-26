@@ -10,7 +10,7 @@ import sttp.model.Uri
 import java.time.Instant
 
 class InfluxDBClient(backend: WebSocketBackend[IO], influxDBToken: String, targetHost: Uri) {
-  val influxDBUrl   = uri"$targetHost/api/v2/write?org=my-org&bucket=sensors&precision=s"
+  val influxDBUrl = uri"$targetHost/api/v2/write?org=my-org&bucket=sensors&precision=s"
 
   def sendData(sensorData: FlatSensorData): IO[Response[Either[String, String]]] = {
     val dataF = Clock[IO].realTimeInstant.map(_.getEpochSecond()).map { timestamp =>
