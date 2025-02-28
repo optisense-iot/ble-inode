@@ -34,6 +34,10 @@ object MessageProccessing {
           putStrLn[IO](s"ManufactureData detected from $macAddress. Decoding...") *> IO
             .fromTry(INodeParser.codec.decodeValue(bytes).toTry)
             .map(inode => DeviceData(inode, macAddress).some)
+            .handleErrorWith { err =>
+              IO.println(s"Error occured when parsing manufacture data: ${err.getMessage()}. Skipping invalid payload")
+                .as(None)
+            }
         case DeviceData(BleFrame.Unknown(bytes), macAddress) =>
           putStrLn[IO](s"Unknown BLE frame from $macAddress, skipping...").as(none)
       }
