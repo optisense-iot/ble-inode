@@ -30,7 +30,7 @@ jobs:
           distribution: "temurin"
           java-version: 17
 
-      - uses: coursier/cache-action@v5
+      - uses: coursier/cache-action@v6
 
       - name: Run tests
         run: ./mill _.test
