@@ -38,6 +38,17 @@ jobs:
       - name: Check format
         run: ./mill mill.scalalib.scalafmt.ScalafmtModule/checkFormatAll
 
+      - name: Publish to GitHub Packages (Mill)
+        env:
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ./mill mill.scalalib.PublishModule/ \
+            --publishArtifacts inodeParser.publishArtifacts \
+            --sonatypeUri https://maven.pkg.github.com/optisense-iot/ble-inode \
+            --stagingRelease false \
+            --sonatypeCreds "$GITHUB_ACTOR:$GITHUB_TOKEN"
+
       - name: Build docker image
         run: ./mill server.docker.build
 
