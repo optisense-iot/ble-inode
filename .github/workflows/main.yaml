@@ -47,6 +47,7 @@ jobs:
             --publishArtifacts inodeParser.publishArtifacts \
             --sonatypeUri https://maven.pkg.github.com/optisense-iot/ble-inode \
             --stagingRelease false \
+            --signed false \
             --sonatypeCreds "$GITHUB_ACTOR:$GITHUB_TOKEN"
 
       - name: Build docker image
