@@ -24,7 +24,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Set up JDK 11
+      - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: "temurin"
@@ -50,45 +50,3 @@ jobs:
             --signed false \
             --sonatypeCreds "$GITHUB_ACTOR:$GITHUB_TOKEN"
 
-      - name: Build docker image
-        run: ./mill server.docker.build
-
-      - name: Set outputs
-        id: version
-        run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
-
-      - name: Tag docker image
-        run: |
-          docker tag server ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.sha_short }}
-          docker tag server ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-
-      - name: Log in to the Container registry
-        uses: docker/login-action@v3.3.0
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract metadata (tags, labels) for Docker
-        id: meta
-        uses: docker/metadata-action@9ec57ed1fcdbf14dcef7dfbe97b2010124a938b7
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-
-      - name: Push docker imageo
-        run: |
-          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.sha_short }}
-          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-
-      - name: Get digest
-        id: digest
-        run: |
-          DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest | cut -d'@' -f2)
-          echo "digest=$DIGEST" >> $GITHUB_OUTPUT
-
-      - name: Generate artifact attestation
-        uses: actions/attest-build-provenance@v2
-        with:
-          subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME}}
-          subject-digest: ${{ steps.digest.outputs.digest }}
-          push-to-registry: true
