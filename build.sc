@@ -17,7 +17,7 @@ object inodeParser extends ScalaModule with GitVersionedPublishModule with Publi
     ivy"org.typelevel::cats-core:2.13.0",
   )
 
-  def artifactId = "inode-parser"
+  override def artifactName: T[String] = "inode-parser"
 
   def pomSettings = PomSettings(
     description = "BLE INode parser lib",
